@@ -1,0 +1,121 @@
+Public health and economic problems caused by Storms and other severe weather events 
+====================================================================================
+
+## Synopsis
+Questions:   
+* Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?   
+* Across the United States, which types of events have the greatest economic consequences?   
+
+## Data Processing
+
+Load the needed libraries and unzip the file with data.
+```{r results='hide', message=FALSE, warning=FALSE} 
+library(R.utils)
+library(ggplot2)
+library(plyr)
+library(reshape2)
+
+## bunzip2("repdata-data-StormData.csv.bz2")
+```
+
+Load the data.
+```{r}
+storm.data <- read.csv("repdata-data-StormData.csv", stringsAsFactors=FALSE)
+
+storm.data <- data.frame(as.Date(storm.data$BGN_DATE, "%m/%d/%Y %H:%M:%S"), 
+                     storm.data$EVTYPE, 
+                     storm.data$FATALITIES, 
+                     storm.data$INJURIES,
+                     storm.data$PROPDMG,
+                     as.character(storm.data$PROPDMGEXP),
+                     storm.data$CROPDMG,
+                     as.character(storm.data$CROPDMGEXP),
+                     storm.data$REFNUM)
+colnames(storm.data) <- c("BGN_DATE", "EVTYPE", "FATALITIES", "INJURIES", 
+                          "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP","REFNUM")
+
+```
+
+Calculating new numeric fields as PROPCASH (PROPDMG * PROPDMGEXP), CROPCASH (CROPDMG 
+* CROPDMGEXP) and TOTCASH (PROPCASH * CROPCASH).
+```{r}
+# Removing scientific notation
+options(scipen=999)
+
+# Mapping exponents
+text.values <- c("h","H","k","K","m","M","b","B")
+exp.values <- c(10^2,10^2,10^3,10^3,10^6,10^6,10^9,10^9)
+map.exponents <- data.frame(text.values, exp.values)
+
+#Adding and calculating cash values
+storm.data <- merge(map.exponents, storm.data, 
+                    by.x="text.values", by.y="PROPDMGEXP", all.y=TRUE)
+names(storm.data)[2] <- "prop.exponents"
+storm.data$PROPCASH <- storm.data$PROPDMG * storm.data$prop.exponents
+storm.data$PROPCASH[is.na(storm.data$PROPCASH)] <- 0
+
+storm.data <- merge(map.exponents, storm.data[,2:11], 
+                    by.x="text.values", by.y="CROPDMGEXP", all.y=TRUE)
+names(storm.data)[2] <- "crop.exponents"
+storm.data$CROPCASH <- storm.data$CROPDMG * storm.data$crop.exponents
+storm.data$CROPCASH[is.na(storm.data$CROPCASH)] <- 0
+
+storm.data$TOTCASH <- storm.data$PROPCASH + storm.data$CROPCASH
+
+#cleaning data frame
+storm.data <- storm.data[,c(4:7,10:13)]
+```
+
+
+## Results
+
+## Most harmful types of events with respect to population health across the United States
+
+Summarizing data about fatalities and injuries by type of event and creating a total data frame.
+```{r}
+fatalities.total <- ddply(storm.data,.(EVTYPE),summarize,FATALITIES=sum(FATALITIES, na.rm=TRUE))
+injuries.total <- ddply(storm.data,.(EVTYPE),summarize,INJURIES=sum(INJURIES, na.rm=TRUE))
+
+total <- merge(fatalities.total, injuries.total, 
+                    by.x="EVTYPE", by.y="EVTYPE", all=TRUE)
+```
+
+Filtering only those that are greater than 99th percentile. Reshaping the data, and draw the graph.
+```{r}
+total <- total[total$FATALITIES > quantile(total$FATALITIES, probs=0.99) |
+                    total$INJURIES > quantile(total$INJURIES, probs=0.99),]
+    
+summary <- melt(total, id=c("EVTYPE"), measure.vars=c("FATALITIES","INJURIES"))
+```
+
+```{r fig.width=11, fig.height=11}
+g <- ggplot(summary,
+            aes(x=EVTYPE, 
+                y=value)) + geom_bar(fill="#C70039", stat="identity") +
+                            labs(x = "Event type") + 
+                            labs(y = "Directly afected") +
+                            labs(title="Most harmful events") +
+                            facet_wrap( ~ variable, ncol=1) +
+                            theme(plot.title = element_text(lineheight=.8, face="bold"),
+               axis.text.x=element_text(angle=45,vjust=1,hjust=1))
+print(g)
+
+```
+
+## Costliers types of events across the United States
+
+Filtering the costliers types of events, taking greater than 99th percentile.   
+```{r fig.width=11}
+economic.total <- ddply(storm.data,.(EVTYPE),summarize,TOTCASH=sum(TOTCASH, na.rm=TRUE))
+    
+g <- ggplot(economic.total[economic.total$TOTCASH > quantile(economic.total$TOTCASH, probs=0.99),],
+            aes(x=EVTYPE, 
+                y=TOTCASH/10^9)) + geom_bar(fill="#33FFC4", stat="identity") +
+                                    labs(x = "Event type") + 
+                                    labs(y = "Billion $") +
+                                    labs(title="Costilest events") +
+                                    theme(plot.title = element_text(lineheight=.8, face="bold"),
+                            axis.text.x=element_text(angle=45,vjust=1,hjust=1))
+print(g)
+
+```
