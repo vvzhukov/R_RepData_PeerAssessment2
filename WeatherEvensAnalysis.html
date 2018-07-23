@@ -128,8 +128,8 @@ $(document).ready(function () {
 <h1>Public health and economic problems caused by Storms and other severe weather events</h1>
 <div id="synopsis" class="section level2">
 <h2>Synopsis</h2>
-<p>Questions:<br />
-* Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?<br />
+<p>Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.</p>
+<p>This assignment explores the effect of events between 1950 and 2011 from the US NOAA storm database and answering the following questions: * Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?<br />
 * Across the United States, which types of events have the greatest economic consequences?</p>
 </div>
 <div id="data-processing" class="section level2">
@@ -140,7 +140,7 @@ library(ggplot2)
 library(plyr)
 library(reshape2)
 
-## bunzip2(&quot;repdata-data-StormData.csv.bz2&quot;)</code></pre>
+bunzip2(&quot;repdata-data-StormData.csv.bz2&quot;)</code></pre>
 <p>Load the data.</p>
 <pre class="r"><code>storm.data &lt;- read.csv(&quot;repdata-data-StormData.csv&quot;, stringsAsFactors=FALSE)
 
